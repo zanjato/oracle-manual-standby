@@ -19,7 +19,7 @@ set-strictmode -vers latest
     [parameter(mandatory=$true,valuefrompipeline=$true)][string]$log){
     process{
       $log.replace($NWLN,$NL).split($NL,$REE)|
-      %{$i=0}{"$(&$lnbg[$i]) -- $_";$i=1}|write-host
+      %{$i=0}{"$(&$lnbg[$i]) -- $_";$i=1}|write
     }
   }
   function mk_oc($cs){
@@ -287,7 +287,7 @@ standby database until change ${xcn}
     $log=[io.path]::getfilenamewithoutextension($sn)
     $log="$(split-path $sn)\logs\${log}_${dt}.log"
     try{
-      start-transcript $log -f -outv tran|write-host
+      start-transcript $log -f -outv tran|write
       $props.tran=$tran
     }catch{}
     $NWLN=[environment]::newline
@@ -295,7 +295,7 @@ standby database until change ${xcn}
     $REE=[stringsplitoptions]::removeemptyentries
     $lnbg={date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27}
     if(!$call){log (gwmi win32_process -f "handle=${pid}").commandline}
-    if(!$env:oracle_sid.trim()){throw 'Нет ORACLE_SID'}
+    if(!(test-path env:oracle_sid)){throw 'Нет ORACLE_SID'}
     [void][reflection.assembly]::loadwithpartialname('Oracle.DataAccess')
     log "Подключение к 'PRIMARY' БД..."
     $cs='user id=/;dba privilege=sysdba'
@@ -331,8 +331,8 @@ standby database until change ${xcn}
     }
     if(!$call){log "Затрачено '$($sw.elapsed)'";exit 0}
   }catch{
-    if($call){throw}else{$_|out-string|write-warning|write-host;exit 1}
+    if($call){throw}else{$_|out-string|write-warning|write;exit 1}
   }finally{
-    if($props.tran){stop-transcript|write-host}
+    if($props.tran){stop-transcript|write}
   }
 }
