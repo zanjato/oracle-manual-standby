@@ -25,11 +25,11 @@ set-strictmode -vers latest
     $log=[io.path]::getfilenamewithoutextension($sn)
     $log="$(split-path $sn)\logs\${log}_${dt}.log"
     try{
-      start-transcript $log -f -outv tran|write-host
+      start-transcript $log -f -outv tran|write
       $props.tran=$tran
     }catch{}
-    if(!$call){write-host (gwmi win32_process -f "handle=${pid}").commandline}
-    if(!$env:oracle_sid.trim()){throw 'Нет ORACLE_SID'}
+    if(!$call){write (gwmi win32_process -f "handle=${pid}").commandline}
+    if(!(test-path env:oracle_sid)){throw 'Нет ORACLE_SID'}
 #    $env:path="C:\oracle\product\10.2.0\db_1\BIN;${env:path}"
     $tnsp=gcm tnsping.exe
     $rman=gcm rman.exe
@@ -126,22 +126,22 @@ delete noprompt obsolete recovery window of 2 days;
     [io.file]::writealltext($rman,$scr,[text.encoding]::getencoding(1251))
     $rman="rman.exe target / nocatalog ``@""$rman"""
     &([scriptblock]::create($rman))|oh#>
-    if($props.tran){stop-transcript|write-host;$props.tran=$null}
+    if($props.tran){stop-transcript|write;$props.tran=$null}
     $log="$(split-path $log)\backup_${db}_${role}_${dt}.log"
     try{
-      start-transcript $log -f -outv tran|write-host
+      start-transcript $log -f -outv tran|write
       $props.tran=$tran
     }catch{}
-    write-host $scr
+    write $scr
     $scr="set echo on;${NWLN}${scr}${NWLN}exit${NWLN}"
-    $scr|&$rman target / nocatalog|write-host
+    $scr|&$rman target / nocatalog|write
     if($lastexitcode -ne 0){
       throw "Ошибка '${lastexitcode}' выполнения 'rman.exe'"
     }
-    if(!$call){write-host $sw.elapsed;exit 0}
+    if(!$call){write $sw.elapsed;exit 0}
   }catch{
-    if($call){throw}else{$_|out-string|write-warning|write-host;exit 1}
+    if($call){throw}else{$_|out-string|write-warning|write;exit 1}
   }finally{
-    if($props.tran){stop-transcript|write-host}
+    if($props.tran){stop-transcript|write}
   }
 }
