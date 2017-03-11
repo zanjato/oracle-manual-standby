@@ -8,7 +8,7 @@ set-strictmode -vers latest
     [cmdletbinding()]
     param([parameter(mandatory=$true)][validatenotnull()]
           [management.automation.commandinfo]$ci,
-          [parameter(mandatory=$true][validatenotnull()]
+          [parameter(mandatory=$true)][validatenotnull()]
           [collections.generic.dictionary[string,object]]$bndpars)
     process{
       $ci.parameters.getenumerator()|?{!$_.value.switchparameter}|
