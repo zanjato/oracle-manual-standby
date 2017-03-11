@@ -21,13 +21,13 @@ set-strictmode -vers latest
   }
   function dispose-after{
     [cmdletbinding()]
-    param([validatenotnull()][object]$obj,
+    param([validatenotnull()][object]$o,
           [validatenotnull()][scriptblock]$sb)
     $psboundparameters|chkpars $myinvocation.mycommand
     try{&$sb}
     finally{
-      if($obj -is [idisposable] -or $obj -as [idisposable]){
-        [void][idisposable].getmethod('Dispose').invoke($obj,$null)
+      if($o -is [idisposable] -or $o -as [idisposable]){
+        [void][idisposable].getmethod('Dispose').invoke($o,$null)
       }
     }
   }
