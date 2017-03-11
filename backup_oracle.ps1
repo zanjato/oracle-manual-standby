@@ -9,14 +9,14 @@ set-strictmode -vers latest
   function chkpars{
     [cmdletbinding()]
     param([parameter(mandatory=$true)][validatenotnull()]
-          [management.automation.commandinfo]$ctx,
+          [management.automation.commandinfo]$ci,
           [parameter(mandatory=$true,valuefrompipeline=$true)]
           [validatenotnull()]
           [collections.generic.dictionary[string,object]]$bndpars)
     process{
-      $ctx.parameters.getenumerator()|?{!$_.value.switchparameter}|
+      $ci.parameters.getenumerator()|?{!$_.value.switchparameter}|
       %{gv $_.key -ea silentlycontinue}|?{!$bndpars.containskey($_.name)}|
-      %{throw "Функция '$($ctx.name)' вызвана без параметра '$($_.name)'"}
+      %{throw "Функция '$($ci.name)' вызвана без параметра '$($_.name)'"}
     }
   }
   function dispose-after{
