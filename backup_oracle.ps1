@@ -1,4 +1,4 @@
-#requires -version 2
+﻿#requires -version 2
 <#set-executionpolicy remotesigned localmachine -f
 get-acl (join-path $env:windir\system32\tasks manual_standby_recovery.job)|
   set-acl (join-path $env:windir\system32\tasks backup_oracle.job)
@@ -21,8 +21,8 @@ set-strictmode -vers latest
   }
   function dispose-after{
     [cmdletbinding()]
-    param([validatenotnull][object]$obj,
-          [validatenotnull][scriptblock]$sb)
+    param([validatenotnull()][object]$obj,
+          [validatenotnull()][scriptblock]$sb)
     $psboundparameters|chkpars $myinvocation.mycommand
     try{&$sb}
     finally{

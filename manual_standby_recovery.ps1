@@ -1,4 +1,4 @@
-#requires -version 2
+﻿#requires -version 2
 <#set-executionpolicy remotesigned localmachine -f
 get-acl (join-path $env:windir\system32\tasks backup_oracle.job)|
   set-acl (join-path $env:windir\system32\tasks manual_standby_recovery.job)
@@ -21,8 +21,8 @@ set-strictmode -vers latest
   }
   function dispose-after{
     [cmdletbinding()]
-    param([validatenotnull][object]$obj,
-          [validatenotnull][scriptblock]$sb)
+    param([validatenotnull()][object]$obj,
+          [validatenotnull()][scriptblock]$sb)
     $psboundparameters|chkpars $myinvocation.mycommand
     try{&$sb}
     finally{
@@ -55,7 +55,7 @@ set-strictmode -vers latest
             [oracle.dataaccess.client.oracleconnection]$oc,
             [validatenotnullorempty()][string]$cft,
             [validatenotnullorempty()][string]$dbr,
-            [validatenotnull][string[]]$om)
+            [validatenotnull()][string[]]$om)
     $psboundparameters|chkpars $myinvocation.mycommand
     log "В '${dbr}' БД получение информации из V`$DATABASE..."
     $cm.connection=$oc
