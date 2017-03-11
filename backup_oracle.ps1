@@ -10,8 +10,7 @@ set-strictmode -vers latest
     [cmdletbinding()]
     param([parameter(mandatory=$true)][validatenotnull()]
           [management.automation.commandinfo]$ci,
-          [parameter(mandatory=$true,valuefrompipeline=$true)]
-          [validatenotnull()]
+          [parameter(mandatory=$true)][validatenotnull()]
           [collections.generic.dictionary[string,object]]$bndpars)
     process{
       $ci.parameters.getenumerator()|?{!$_.value.switchparameter}|
@@ -23,7 +22,7 @@ set-strictmode -vers latest
     [cmdletbinding()]
     param([validatenotnull()][object]$o,
           [validatenotnull()][scriptblock]$sb)
-    $psboundparameters|chkpars $myinvocation.mycommand
+    chkpars $myinvocation.mycommand $psboundparameters
     try{&$sb}
     finally{
       if($o -is [idisposable] -or $o -as [idisposable]){
@@ -37,7 +36,7 @@ set-strictmode -vers latest
           [validatenotnullorempty()][string]$log,
           [switch]$err)
     process{
-      $psboundparameters|chkpars $myinvocation.mycommand
+      chkpars $myinvocation.mycommand $psboundparameters
       $log.replace($LNW,$NL.str).split($NL.ach,$REE)|
       %{$i=0}{"$(&$lnbg[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}
     }
