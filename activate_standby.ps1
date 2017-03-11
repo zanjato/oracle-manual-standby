@@ -8,8 +8,7 @@ set-strictmode -vers latest
     [cmdletbinding()]
     param([parameter(mandatory=$true)][validatenotnull()]
           [management.automation.commandinfo]$ci,
-          [parameter(mandatory=$true,valuefrompipeline=$true)]
-          [validatenotnull()]
+          [parameter(mandatory=$true][validatenotnull()]
           [collections.generic.dictionary[string,object]]$bndpars)
     process{
       $ci.parameters.getenumerator()|?{!$_.value.switchparameter}|
@@ -21,7 +20,7 @@ set-strictmode -vers latest
     [cmdletbinding()]
     param([validatenotnull()][object]$o,
           [validatenotnull()][scriptblock]$sb)
-    $psboundparameters|chkpars $myinvocation.mycommand
+    chkpars $myinvocation.mycommand $psboundparameters
     try{&$sb}
     finally{
       if($o -is [idisposable] -or $o -as [idisposable]){
@@ -35,14 +34,14 @@ set-strictmode -vers latest
           [validatenotnullorempty()][string]$log,
           [switch]$err)
     process{
-      $psboundparameters|chkpars $myinvocation.mycommand
+      chkpars $myinvocation.mycommand $psboundparameters
       $log.replace($LNW,$NL.str).split($NL.ach,$REE)|
       %{$i=0}{"$(&$lnbg[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}
     }
   }
   function mk_oc{
     [cmdletbinding()]param([validatenotnullorempty()][string]$cs)
-    $psboundparameters|chkpars $myinvocation.mycommand
+    chkpars $myinvocation.mycommand $psboundparameters
     $oc=new-object oracle.dataaccess.client.oracleconnection $cs
     $oc.open()
     $oc
@@ -54,7 +53,7 @@ set-strictmode -vers latest
             [validatenotnullorempty()][string]$cft,
             [validatenotnullorempty()][string]$dbr,
             [validatenotnull()][string[]]$om)
-    $psboundparameters|chkpars $myinvocation.mycommand
+    chkpars $myinvocation.mycommand $psboundparameters
     log "В '${dbr}' БД получение информации из V`$DATABASE..."
     $cm.connection=$oc
     $cm.commandtext=@'
