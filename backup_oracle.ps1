@@ -6,18 +6,38 @@ powershell.exe -nol -nop -non -f backup_oracle.ps1[ -call]#>
 param([switch]$call)
 set-strictmode -vers latest
 &{
-  function dispose(
-    [parameter(mandatory=$true,valuefrompipeline=$true)]$obj){
+  function chkpars{
+    [cmdletbinding()]
+    param([parameter(mandatory=$true)][validatenotnull()]
+          [management.automation.commandinfo]$ctx,
+          [parameter(mandatory=$true,valuefrompipeline=$true)]
+          [validatenotnull()]
+          [collections.generic.dictionary[string,object]]$bndpars)
     process{
+      $ctx.parameters.getenumerator()|?{!$_.value.switchparameter}|
+      %{gv $_.key -ea silentlycontinue}|?{!$bndpars.containskey($_.name)}|
+      %{throw "Функция '$($ctx.name)' вызвана без параметра '$($_.name)'"}
+    }
+  }
+  function dispose-after{
+    [cmdletbinding()]
+    param([validatenotnull][object]$obj,
+          [validatenotnull][scriptblock]$sb)
+    $psboundparameters|chkpars $myinvocation.mycommand
+    try{&$sb}
+    finally{
       if($obj -is [idisposable] -or $obj -as [idisposable]){
         [void][idisposable].getmethod('Dispose').invoke($obj,$null)
       }
     }
   }
-  function dispose-after($obj,[scriptblock]$sb){try{&$sb}finally{dispose $obj}}
-  function log([switch]$err,
-    [parameter(mandatory=$true,valuefrompipeline=$true)][string]$log){
+  function log{
+    [cmdletbinding()]
+    param([parameter(valuefrompipeline=$true)]
+          [validatenotnullorempty()][string]$log,
+          [switch]$err)
     process{
+      $psboundparameters|chkpars $myinvocation.mycommand
       $log.replace($LNW,$NL.str).split($NL.ach,$REE)|
       %{$i=0}{"$(&$lnbg[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}
     }
@@ -35,10 +55,7 @@ set-strictmode -vers latest
     $NL=@{str="`n";ach=[char[]]"`n"}
     $REE=[stringsplitoptions]::removeemptyentries
     $lnbg={date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27}
-    try{
-      start-transcript $log -f -outv tran|log
-      $props.tran=$tran
-    }catch{}
+    try{start-transcript $log -f -outv tran|log;$props.tran=$tran}catch{}
     if(!$call){log (gwmi win32_process -f "handle=${pid}").commandline}
     if(!(test-path env:oracle_sid)){throw 'Нет ORACLE_SID'}
 #    $env:path="C:\oracle\product\10.2.0\db_1\BIN;${env:path}"
@@ -57,11 +74,11 @@ where database_role in('PRIMARY','PHYSICAL STANDBY')
         dispose-after(
           $da=new-object oracle.dataaccess.client.oracledataadapter){
           $da.selectcommand=$cm
-          dispose-after($dt=new-object data.datatable){
-            if($da.fill($dt) -ne 1){throw "Чтение из '$($cm.commandtext)'"}
-            $r1=$dt.rows[0]
-            $props.db=$r1.name.tolower()
-            $props.role=$r1.role.tolower()
+          dispose-after($tbl=new-object data.datatable){
+            if($da.fill($tbl) -ne 1){throw "Чтение из '$($cm.commandtext)'"}
+            $r0=$tbl.rows[0]
+            $props.db=$r0.name.tolower()
+            $props.role=$r0.role.tolower()
             if($props.role -ne 'primary'){$props.role='standby'}
           }
 <#        $rd=$cm.executereader('singleresult,singlerow')
@@ -80,11 +97,12 @@ where database_role in('PRIMARY','PHYSICAL STANDBY')
     if($lastexitcode -ne 0){
       throw "Ошибка '${lastexitcode}' выполнения 'tnsping.exe ${nsn}'"
     }
+    $chkempty={!!$_ -and $_.trim() -ne [string]::empty}
     for(;;){
       $out|
       ?{$_ -match '\(\s*host\s*=\s*(\w(?:-*\w)*(?:\.\w(?:-*\w)*)*)\s*\)'}|
       %{break}
-      throw ($out|?{!!$_ -and $_.trim() -ne [string]::empty}) -join $LNW
+      throw ($out|? $chkempty) -join $LNW
     }
     $svr=[net.dns]::gethostentry($matches[1]).hostname
     $bkp="\\${svr}\archivedlogs\backup\%d-${role}-%T-%t-%s-"
@@ -138,13 +156,10 @@ delete noprompt obsolete recovery window of 2 days;
     &([scriptblock]::create($rman))|oh#>
     if($props.tran){stop-transcript|log;$props.tran=$null}
     $log="$(split-path $log)\backup_${db}_${role}_${dt}.log"
-    try{
-      start-transcript $log -f -outv tran|log
-      $props.tran=$tran
-    }catch{}
+    try{start-transcript $log -f -outv tran|log;$props.tran=$tran}catch{}
     log $scr
     $scr="set echo on;${LNW}${scr}${LNW}exit${LNW}"
-    $scr|&$rman target / nocatalog|log
+    $scr|&$rman target / nocatalog|? $chkempty|log
     if($lastexitcode -ne 0){
       throw "Ошибка '${lastexitcode}' выполнения 'rman.exe'"
     }

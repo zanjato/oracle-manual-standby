@@ -6,29 +6,58 @@ powershell.exe -nol -nop -non -f manual_standby_recovery.ps1[ -next][ -call]#>
 param([switch]$next,[switch]$call)
 set-strictmode -vers latest
 &{
-  function dispose(
-    [parameter(mandatory=$true,valuefrompipeline=$true)]$obj){
+  function chkpars{
+    [cmdletbinding()]
+    param([parameter(mandatory=$true)][validatenotnull()]
+          [management.automation.commandinfo]$ctx,
+          [parameter(mandatory=$true,valuefrompipeline=$true)]
+          [validatenotnull()]
+          [collections.generic.dictionary[string,object]]$bndpars)
     process{
+      $ctx.parameters.getenumerator()|?{!$_.value.switchparameter}|
+      %{gv $_.key -ea silentlycontinue}|?{!$bndpars.containskey($_.name)}|
+      %{throw "Функция '$($ctx.name)' вызвана без параметра '$($_.name)'"}
+    }
+  }
+  function dispose-after{
+    [cmdletbinding()]
+    param([validatenotnull][object]$obj,
+          [validatenotnull][scriptblock]$sb)
+    $psboundparameters|chkpars $myinvocation.mycommand
+    try{&$sb}
+    finally{
       if($obj -is [idisposable] -or $obj -as [idisposable]){
         [void][idisposable].getmethod('Dispose').invoke($obj,$null)
       }
     }
   }
-  function dispose-after($obj,[scriptblock]$sb){try{&$sb}finally{dispose $obj}}
-  function log([switch]$err,
-    [parameter(mandatory=$true,valuefrompipeline=$true)][string]$log){
+  function log{
+    [cmdletbinding()]
+    param([parameter(valuefrompipeline=$true)]
+          [validatenotnullorempty()][string]$log,
+          [switch]$err)
     process{
+      $psboundparameters|chkpars $myinvocation.mycommand
       $log.replace($LNW,$NL.str).split($NL.ach,$REE)|
       %{$i=0}{"$(&$lnbg[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}
     }
   }
-  function mk_oc($cs){
+  function mk_oc{
+    [cmdletbinding()]param([validatenotnullorempty()][string]$cs)
+    $psboundparameters|chkpars $myinvocation.mycommand
     $oc=new-object oracle.dataaccess.client.oracleconnection $cs
     $oc.open()
     $oc
   }
-  function chk_db_pars($oc,$cft,$dbr,$om){
-    log  "В '${dbr}' БД получение информации из V`$DATABASE..."
+  function chk_db_pars{
+      [cmdletbinding()]
+      param([validatenotnull()]
+            [oracle.dataaccess.client.oracleconnection]$oc,
+            [validatenotnullorempty()][string]$cft,
+            [validatenotnullorempty()][string]$dbr,
+            [validatenotnull][string[]]$om)
+    $psboundparameters|chkpars $myinvocation.mycommand
+    log "В '${dbr}' БД получение информации из V`$DATABASE..."
     $cm.connection=$oc
     $cm.commandtext=@'
 select dbid,controlfile_type cft,database_role dbr,log_mode lm,
@@ -290,10 +319,7 @@ standby database until change ${xcn}
     $NL=@{str="`n";ach=[char[]]"`n"}
     $REE=[stringsplitoptions]::removeemptyentries
     $lnbg={date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27}
-    try{
-      start-transcript $log -f -outv tran|log
-      $props.tran=$tran
-    }catch{}
+    try{start-transcript $log -f -outv tran|log;$props.tran=$tran}catch{}
     if(!$call){log (gwmi win32_process -f "handle=${pid}").commandline}
     if(!(test-path env:oracle_sid)){throw 'Нет ORACLE_SID'}
     [void][reflection.assembly]::loadwithpartialname('Oracle.DataAccess')
@@ -306,7 +332,7 @@ standby database until change ${xcn}
           $da=new-object oracle.dataaccess.client.oracledataadapter){
           $da.selectcommand=$cm
           dispose-after($tbl=new-object data.datatable){
-            $om=,'READ WRITE'
+            $om=@('READ WRITE')
             if(!$next){$om+='MOUNTED','READ ONLY'}
             $prid,$prrl,$prprl=chk_db_pars $proc CURRENT PRIMARY $om
             $prd1=pr_dst
@@ -315,7 +341,7 @@ standby database until change ${xcn}
             dispose-after($sboc=mk_oc $cs){
               log '... Выполнено'
               $sbid,$sbrl,$sbprl=chk_db_pars $sboc STANDBY 'PHYSICAL STANDBY' `
-                                             MOUNTED
+                                             @('MOUNTED')
               chk_db_ids
               $sbcn=sb_cn
               chk_db_incs
