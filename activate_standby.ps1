@@ -5,21 +5,16 @@ param([switch]$activate,[switch]$call)
 set-strictmode -vers latest
 &{
   function chkpars{
-    [cmdletbinding()]
     param([parameter(mandatory=$true)][validatenotnull()]
           [management.automation.commandinfo]$ci,
           [parameter(mandatory=$true)][validatenotnull()]
           [collections.generic.dictionary[string,object]]$bndpars)
-    process{
-      $ci.parameters.getenumerator()|?{!$_.value.switchparameter}|
-      %{gv $_.key -ea silentlycontinue}|?{!$bndpars.containskey($_.name)}|
-      %{throw "Функция '$($ci.name)' вызвана без параметра '$($_.name)'"}
-    }
+    $ci.parameters.getenumerator()|?{!$_.value.switchparameter}|
+    %{gv $_.key -ea silentlycontinue}|?{!$bndpars.containskey($_.name)}|
+    %{throw "Функция '$($ci.name)' вызвана без параметра '$($_.name)'"}
   }
-  function dispose-after{
-    [cmdletbinding()]
-    param([validatenotnull()][object]$obj,
-          [validatenotnull()][scriptblock]$sb)
+  function dispose-after{[cmdletbinding()]
+    param([validatenotnull()][object]$obj,[validatenotnull()][scriptblock]$sb)
     chkpars $myinvocation.mycommand $psboundparameters
     try{&$sb}
     finally{
@@ -28,28 +23,23 @@ set-strictmode -vers latest
       }
     }
   }
-  function log{
-    [cmdletbinding()]
+  function log{[cmdletbinding()]
     param([parameter(valuefrompipeline=$true)]
-          [validatenotnullorempty()][string]$log,
-          [switch]$err)
+          [validatenotnullorempty()][string]$log,[switch]$err)
     process{
       chkpars $myinvocation.mycommand $psboundparameters
       $log.replace($LNW,$NL.str).split($NL.ach,$REE)|
       %{$i=0}{"$(&$lnbg[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}
     }
   }
-  function mk_oc{
-    [cmdletbinding()]param([validatenotnullorempty()][string]$cs)
+  function mk_oc{[cmdletbinding()]param([validatenotnullorempty()][string]$cs)
     chkpars $myinvocation.mycommand $psboundparameters
     $oc=new-object oracle.dataaccess.client.oracleconnection $cs
     $oc.open()
     $oc
   }
-  function chk_db_pars{
-      [cmdletbinding()]
-      param([validatenotnull()]
-            [oracle.dataaccess.client.oracleconnection]$oc,
+  function chk_db_pars{[cmdletbinding()]
+      param([validatenotnull()][oracle.dataaccess.client.oracleconnection]$oc,
             [validatenotnullorempty()][string]$cft,
             [validatenotnullorempty()][string]$dbr,
             [validatenotnull()][string[]]$om)
@@ -129,10 +119,10 @@ select min(scn) scn
     }
     log '... Выполнено'
   }
-  $sw=[diagnostics.stopwatch]::startnew()
   $erroractionpreference='stop'
-  $props=@{tran=$null}
   try{
+    $sw=[diagnostics.stopwatch]::startnew()
+    $props=@{tran=$null}
     $dt=date
     $dt='{0}_{1:HHmm}' -f (($dt-[datetime]0).days%7+1),$dt
     $sn=$myinvocation.scriptname
