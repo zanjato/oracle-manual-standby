@@ -28,10 +28,12 @@ set-strictmode -vers latest
   function log{[cmdletbinding()]
     param([parameter(valuefrompipeline=$true)]
           [validatenotnullorempty()][string]$log,[switch]$err)
+    begin{$f=$myinvocation.mycommand}
     process{
-      chkpars $myinvocation.mycommand $psboundparameters
-      $log.replace($LNW,$NL.str).split($NL.ach,$REE)|
-      %{$i=0}{"$(&$lnbg[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}
+      chkpars $f $psboundparameters
+      $log|%{$_.replace($LNW,$NL.str).split($NL.ach,$f.REE)}|? $f.CE|
+      %{$i=0}{"$(&$f.LLB[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}|
+      write-host
     }
   }
   function mk_oc{[cmdletbinding()]param([validatenotnullorempty()][string]$cs)
@@ -41,6 +43,9 @@ set-strictmode -vers latest
     $oc
   }
   $erroractionpreference='stop'
+  gcm log|add-member noteproperty REE ([stringsplitoptions]'removeemptyentries') -pa|
+          add-member noteproperty CE ({!!$_ -and $_.trim() -ne [string]::empty}) -pa|
+          add-member noteproperty LLB ({date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27})
   try{
     $sw=[diagnostics.stopwatch]::startnew()
     $props=@{tran=$null}
