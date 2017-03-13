@@ -122,9 +122,9 @@ select min(scn) scn
     log '... Выполнено'
   }
   $erroractionpreference='stop'
-  gcm log|add-member noteproperty REE ([stringsplitoptions]'removeemptyentries') -pa|
-          add-member noteproperty CE ({!!$_ -and $_.trim() -ne [string]::empty}) -pa|
-          add-member noteproperty LLB ({date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27})
+  gcm log|add-member @{REE=[stringsplitoptions]'removeemptyentries'
+                       CE={!!$_ -and $_.trim() -ne [string]::empty}
+                       LLB={date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27}}
   try{
     $sw=[diagnostics.stopwatch]::startnew()
     $props=@{tran=$null}
