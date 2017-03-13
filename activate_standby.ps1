@@ -8,9 +8,9 @@ set-strictmode -vers latest
     param([parameter(mandatory=$true)][validatenotnull()]
           [management.automation.commandinfo]$ci,
           [parameter(mandatory=$true)][validatenotnull()]
-          [collections.generic.dictionary[string,object]]$bndpars)
+          [collections.generic.dictionary[string,object]]$bp)
     $ci.parameters.getenumerator()|?{!$_.value.switchparameter}|
-    %{gv $_.key -ea silentlycontinue}|?{!$bndpars.containskey($_.name)}|
+    %{gv $_.key -ea silentlycontinue}|?{!$bp.containskey($_.name)}|
     %{throw "Функция '$($ci.name)' вызвана без параметра '$($_.name)'"}
   }
   function dispose-after{[cmdletbinding()]
@@ -25,11 +25,15 @@ set-strictmode -vers latest
   }
   function log{[cmdletbinding()]
     param([parameter(valuefrompipeline=$true)]
-          [validatenotnullorempty()][string]$log,[switch]$err)
+          [validatenotnullorempty()][string]$log,[switch]$err,
+          [scriptblock]$ce={!!$_ -and $_.trim() -ne [string]::empty},
+          [stringsplitoptions]$REE='removeemptyentries',
+          [string]$llbg=@({date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27}))
     process{
       chkpars $myinvocation.mycommand $psboundparameters
-      $log.replace($LNW,$NL.str).split($NL.ach,$REE)|
-      %{$i=0}{"$(&$lnbg[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}
+      $log|%{replace($LNW,$NL.str).split($NL.ach,$REE)}|? $ce|
+      %{"$(&$llbg[!!$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}|
+      write-host
     }
   }
   function mk_oc{[cmdletbinding()]param([validatenotnullorempty()][string]$cs)
