@@ -42,7 +42,7 @@ set-strictmode -vers latest
   function mk_log{
     $dt=date
     $my.dt='{0}_{1:HHmm}' -f (($dt-[datetime]0).days%7+1),$dt
-    $my.sn=$myinvocation.scriptname
+    $my.sn=$myinvocation.scriptname9
     $my.log=[io.path]::getfilenamewithoutextension($my.sn)
     $my.log="$(split-path $my.sn)\logs\$($my.log)_$($my.dt).log"
     try{start-transcript $my.log -f|log;$my.tran=$true}catch{}
@@ -65,7 +65,7 @@ set-strictmode -vers latest
     param([validatenotnull()][oracle.dataaccess.client.oracleconnection]$oc,
           [validatenotnullorempty()][string]$cft,
           [validatenotnullorempty()][string]$dbr,
-          [validatenotnull()][string[]]$om)
+          [validatenotnullorempty()][string[]]$om)
     log "В '${dbr}' БД получение информации из V`$DATABASE..."
     $cm.connection=$oc
     $cm.commandtext=@'
