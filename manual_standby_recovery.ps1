@@ -25,15 +25,15 @@ set-strictmode -vers latest
       bsw=$null
       tran=$null}
   }
-  function set_bsw{param([int]$bsw=512)
+  function set_bsw{param([validatenotnull()][int]$bsw=512)
     $raw=$host.ui.rawui
     $bs=$raw.buffersize
     $bsw,$bs.width=$bs.width,$bsw
     $raw.buffersize=$bs
     $my.bsw=$bsw
   }
-  function log{param([parameter(valuefrompipeline=$true)][string]$log,
-                     [switch]$err)
+  function log{param([parameter(valuefrompipeline=$true)]
+                     [validatenotnullorempty()][string]$log,[switch]$err)
     process{
       $log|%{$_.replace($my.LNW,$my.NL.str).split($my.NL.ach,$my.REE)}|? $my.CE|
       %{$i=0}{"$(&$my.LLB[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}|out-host
