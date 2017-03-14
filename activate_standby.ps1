@@ -53,7 +53,7 @@ set-strictmode -vers latest
     param([validatenotnull()][oracle.dataaccess.client.oracleconnection]$oc,
           [validatenotnullorempty()][string]$cft,
           [validatenotnullorempty()][string]$dbr,
-          [validatenotnull()][string[]]$om)
+          [validatenotnullorempty()][string[]]$om)
     log "В '${dbr}' БД получение информации из V`$DATABASE..."
     $cm.connection=$oc
     $cm.commandtext=@'
