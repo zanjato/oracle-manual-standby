@@ -2,8 +2,8 @@
 <#set-executionpolicy remotesigned localmachine -f
 get-acl (join-path $env:windir\system32\tasks manual_standby_recovery.job)|
   set-acl (join-path $env:windir\system32\tasks backup_oracle.job)
-powershell.exe -nol -nop -non -f backup_oracle.ps1[ -call]#>
-param([switch]$call)
+powershell.exe -nol -nop -non -f backup_oracle.ps1[-nobak][ -call]#>
+param([switch]$nobak,[switch]$call)
 set-strictmode -vers latest
 &{
   function set_my{
@@ -144,7 +144,7 @@ delete noprompt obsolete recovery window of 2 days;
     try{start-transcript $my.log -f|log;$my.tran=$true}catch{}
     log $scr
     $scr="set echo on;{1}{0}{1}exit{1}" -f $scr,$my.LNW
-    $scr|&$rman target / nocatalog|log
+    if(!$nobak){$scr|&$rman target / nocatalog|log}
     if($lastexitcode -ne 0){
       throw "Ошибка '${lastexitcode}' выполнения 'rman.exe'"
     }
