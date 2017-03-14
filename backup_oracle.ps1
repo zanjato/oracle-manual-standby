@@ -6,18 +6,39 @@ powershell.exe -nol -nop -non -f backup_oracle.ps1[ -call]#>
 param([switch]$call)
 set-strictmode -vers latest
 &{
-  function chkpars{
-    param([parameter(mandatory=$true)][validatenotnull()]
-          [management.automation.commandinfo]$ci,
-          [parameter(mandatory=$true)][validatenotnull()]
-          [collections.generic.dictionary[string,object]]$bndpars)
-    $ci.parameters.getenumerator()|?{!$_.value.switchparameter}|
-    %{gv $_.key -ea silentlycontinue}|?{!$bndpars.containskey($_.name)}|
-    %{throw "Функция '$($ci.name)' вызвана без параметра '$($_.name)'"}
+  function set_my{
+    @{LNW=[environment]::newline
+      NL=@{str="`n";ach=[char[]]"`n"}
+      REE=[stringsplitoptions]::removeemptyentries
+      CE={!!$_ -and $_.trim() -ne [string]::empty}
+      LLB={date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27}
+      bsw=$null
+      tran=$null}
   }
-  function dispose-after{[cmdletbinding()]
+  function set_bsw{param([int]$bsw=512)
+    $raw=$host.ui.rawui
+    $bs=$raw.buffersize
+    $bsw,$bs.width=$bs.width,$bsw
+    $raw.buffersize=$bs
+    $my.bsw=$bsw
+  }
+  function log{param([parameter(valuefrompipeline=$true)][string]$log,
+                     [switch]$err)
+    process{
+      $log|%{$_.replace($my.LNW,$my.NL.str).split($my.NL.ach,$my.REE)}|? $my.CE|
+      %{$i=0}{"$(&$my.LLB[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}|out-host
+    }
+  }
+  function mk_log{
+    $dt=date
+    $my.dt='{0}_{1:HHmm}' -f (($dt-[datetime]0).days%7+1),$dt
+    $my.sn=$myinvocation.scriptname
+    $my.log=[io.path]::getfilenamewithoutextension($my.sn)
+    $my.log="$(split-path $my.sn)\logs\$($my.log)_$($my.dt).log"
+    try{start-transcript $my.log -f|log;$my.tran=$true}catch{}
+  }
+  function dispose-after{
     param([validatenotnull()][object]$obj,[validatenotnull()][scriptblock]$sb)
-    chkpars $myinvocation.mycommand $psboundparameters
     try{&$sb}
     finally{
       if($obj -is [idisposable] -or $obj -as [idisposable]){
@@ -25,40 +46,17 @@ set-strictmode -vers latest
       }
     }
   }
-  function log{[cmdletbinding()]
-    param([parameter(valuefrompipeline=$true)]
-          [validatenotnullorempty()][string]$log,[switch]$err)
-    begin{$f=$myinvocation.mycommand}
-    process{
-      chkpars $f $psboundparameters
-      $log|%{$_.replace($LNW,$NL.str).split($NL.ach,$f.REE)}|? $f.CE|
-      %{$i=0}{"$(&$f.LLB[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}|
-      write-host
-    }
-  }
-  function mk_oc{[cmdletbinding()]param([validatenotnullorempty()][string]$cs)
-    chkpars $myinvocation.mycommand $psboundparameters
+  function mk_oc{param([validatenotnullorempty()][string]$cs)
     $oc=new-object oracle.dataaccess.client.oracleconnection $cs
     $oc.open()
     $oc
   }
+  $sw=[diagnostics.stopwatch]::startnew()
   $erroractionpreference='stop'
-  gcm log|add-member @{REE=[stringsplitoptions]'removeemptyentries'
-                       CE={!!$_ -and $_.trim() -ne [string]::empty}
-                       LLB={date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27}}
+  $my=set_my
   try{
-    $sw=[diagnostics.stopwatch]::startnew()
-    $props=@{tran=$null}
-    $dt=date
-    $dt='{0}_{1:HHmm}' -f (($dt-[datetime]0).days%7+1),$dt
-    $sn=$myinvocation.scriptname
-    $log=[io.path]::getfilenamewithoutextension($sn)
-    $log="$(split-path $sn)\logs\${log}_${dt}.log"
-    $LNW=[environment]::newline
-    $NL=@{str="`n";ach=[char[]]"`n"}
-    $REE=[stringsplitoptions]::removeemptyentries
-    $lnbg={date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27}
-    try{start-transcript $log -f -outv tran|log;$props.tran=$tran}catch{}
+    set_bsw
+    mk_log
     if(!$call){log (gwmi win32_process -f "handle=${pid}").commandline}
     if(!(test-path env:oracle_sid)){throw 'Нет ORACLE_SID'}
 #    $env:path="C:\oracle\product\10.2.0\db_1\BIN;${env:path}"
@@ -77,33 +75,25 @@ where database_role in('PRIMARY','PHYSICAL STANDBY')
           $da.selectcommand=$cm
           dispose-after($tbl=new-object data.datatable){
             if($da.fill($tbl) -ne 1){throw "Чтение из '$($cm.commandtext)'"}
-            $r0=$tbl.rows[0]
-            $props.db=$r0.name.tolower()
-            $props.role=$r0.role.tolower()
-            if($props.role -ne 'primary'){$props.role='standby'}
+            $r1=$tbl.rows[0]
+            $my.db=$r1.name.tolower()
+            $my.role=$r1.role.tolower()
+            if($my.role -ne 'primary'){$my.role='standby'}
           }
-<#        $rd=$cm.executereader('singleresult,singlerow')
-        try{
-          if(!$rd.read()){throw "Чтение из '$($cm.commandtext)'"}
-          $props.db=$rd['name'].tolower()
-          $props.role=$rd['database_role'].tolower()
-          if($props.role -ne 'primary'){$props.role='standby'}
-        }finally{if(!$rd.isclosed){$rd.close()}}#>
         }
       }
     }
-    $db,$role=$props['db','role']
+    $db,$role=$my['db','role']
     $nsn="$('standby','primary'|?{$_ -ne $role})_ekr"
     $out=tnsping.exe $nsn
     if($lastexitcode -ne 0){
       throw "Ошибка '${lastexitcode}' выполнения 'tnsping.exe ${nsn}'"
     }
-    $chkempty={!!$_ -and $_.trim() -ne [string]::empty}
     for(;;){
       $out|
       ?{$_ -match '\(\s*host\s*=\s*(\w(?:-*\w)*(?:\.\w(?:-*\w)*)*)\s*\)'}|
       %{break}
-      throw ($out|? $chkempty) -join $LNW
+      throw $out -join $my.LNW
     }
     $svr=[net.dns]::gethostentry($matches[1]).hostname
     $bkp="\\${svr}\archivedlogs\backup\%d-${role}-%T-%t-%s-"
@@ -149,22 +139,19 @@ delete noprompt obsolete recovery window of 2 days;
 #delete noprompt obsolete redundancy=2;
 "@
     }
-<#    $rman="backup_${db}_${role}"
-    $log=split-path $log|join-path -ch "${rman}_${dt}.log"
-    $rman=split-path $sn|join-path -ch "${rman}.rman"
-    [io.file]::writealltext($rman,$scr,[text.encoding]::getencoding(1251))
-    $rman="rman.exe target / nocatalog ``@""$rman"""
-    &([scriptblock]::create($rman))|oh#>
-    if($props.tran){stop-transcript|log;$props.tran=$null}
-    $log="$(split-path $log)\backup_${db}_${role}_${dt}.log"
-    try{start-transcript $log -f -outv tran|log;$props.tran=$tran}catch{}
+    if($my.tran){stop-transcript|log;$my.tran=$null}
+    $my.log="$(split-path $my.log)\backup_${db}_${role}_$($my.dt).log"
+    try{start-transcript $my.log -f|log;$my.tran=$true}catch{}
     log $scr
-    $scr="set echo on;${LNW}${scr}${LNW}exit${LNW}"
-    $scr|&$rman target / nocatalog|? $chkempty|log
+    $scr="set echo on;{1}{0}{1}exit{1}" -f $scr,$my.LNW
+    $scr|&$rman target / nocatalog|log
     if($lastexitcode -ne 0){
       throw "Ошибка '${lastexitcode}' выполнения 'rman.exe'"
     }
     if(!$call){log "Затрачено '$($sw.elapsed)'";exit 0}
   }catch{if($call){throw}else{$_|out-string|log -err;exit 1}}
-   finally{if($props.tran){stop-transcript >$null}}
+   finally{
+     if($my.tran){stop-transcript >$null}
+     if($my.bsw){set_bsw $my.bsw}
+   }
 }

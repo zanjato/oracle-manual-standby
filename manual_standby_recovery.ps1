@@ -6,18 +6,49 @@ powershell.exe -nol -nop -non -f manual_standby_recovery.ps1[ -next][ -call]#>
 param([switch]$next,[switch]$call)
 set-strictmode -vers latest
 &{
-  function chkpars{
+<#  function chkpars{
     param([parameter(mandatory=$true)][validatenotnull()]
           [management.automation.commandinfo]$ci,
           [parameter(mandatory=$true)][validatenotnull()]
-          [collections.generic.dictionary[string,object]]$bndpars)
+          [collections.generic.dictionary[string,object]]$bp)
     $ci.parameters.getenumerator()|?{!$_.value.switchparameter}|
-    %{gv $_.key -ea silentlycontinue}|?{!$bndpars.containskey($_.name)}|
+    %{gv $_.key -ea silentlycontinue}|?{!$bp.containskey($_.name)}|
     %{throw "Функция '$($ci.name)' вызвана без параметра '$($_.name)'"}
+#    chkpars $myinvocation.mycommand $psboundparameters
+  }#>
+  function set_my{
+    @{LNW=[environment]::newline
+      NL=@{str="`n";ach=[char[]]"`n"}
+      REE=[stringsplitoptions]::removeemptyentries
+      CE={!!$_ -and $_.trim() -ne [string]::empty}
+      LLB={date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27}
+      bsw=$null
+      tran=$null}
   }
-  function dispose-after{[cmdletbinding()]
+  function set_bsw{param([int]$bsw=512)
+    $raw=$host.ui.rawui
+    $bs=$raw.buffersize
+    $bsw,$bs.width=$bs.width,$bsw
+    $raw.buffersize=$bs
+    $my.bsw=$bsw
+  }
+  function log{param([parameter(valuefrompipeline=$true)][string]$log,
+                     [switch]$err)
+    process{
+      $log|%{$_.replace($my.LNW,$my.NL.str).split($my.NL.ach,$my.REE)}|? $my.CE|
+      %{$i=0}{"$(&$my.LLB[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}|out-host
+    }
+  }
+  function mk_log{
+    $dt=date
+    $my.dt='{0}_{1:HHmm}' -f (($dt-[datetime]0).days%7+1),$dt
+    $my.sn=$myinvocation.scriptname
+    $my.log=[io.path]::getfilenamewithoutextension($my.sn)
+    $my.log="$(split-path $my.sn)\logs\$($my.log)_$($my.dt).log"
+    try{start-transcript $my.log -f|log;$my.tran=$true}catch{}
+  }
+  function dispose-after{
     param([validatenotnull()][object]$obj,[validatenotnull()][scriptblock]$sb)
-    chkpars $myinvocation.mycommand $psboundparameters
     try{&$sb}
     finally{
       if($obj -is [idisposable] -or $obj -as [idisposable]){
@@ -25,29 +56,16 @@ set-strictmode -vers latest
       }
     }
   }
-  function log{[cmdletbinding()]
-    param([parameter(valuefrompipeline=$true)]
-          [validatenotnullorempty()][string]$log,[switch]$err)
-    begin{$f=$myinvocation.mycommand}
-    process{
-      chkpars $f $psboundparameters
-      $log|%{$_.replace($LNW,$NL.str).split($NL.ach,$f.REE)}|? $f.CE|
-      %{$i=0}{"$(&$f.LLB[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}|
-      write-host
-    }
-  }
-  function mk_oc{[cmdletbinding()]param([validatenotnullorempty()][string]$cs)
-    chkpars $myinvocation.mycommand $psboundparameters
+  function mk_oc{param([validatenotnullorempty()][string]$cs)
     $oc=new-object oracle.dataaccess.client.oracleconnection $cs
     $oc.open()
     $oc
   }
-  function chk_db_pars{[cmdletbinding()]
-      param([validatenotnull()][oracle.dataaccess.client.oracleconnection]$oc,
-            [validatenotnullorempty()][string]$cft,
-            [validatenotnullorempty()][string]$dbr,
-            [validatenotnull()][string[]]$om)
-    chkpars $myinvocation.mycommand $psboundparameters
+  function chk_db_pars{
+    param([validatenotnull()][oracle.dataaccess.client.oracleconnection]$oc,
+          [validatenotnullorempty()][string]$cft,
+          [validatenotnullorempty()][string]$dbr,
+          [validatenotnull()][string[]]$om)
     log "В '${dbr}' БД получение информации из V`$DATABASE..."
     $cm.connection=$oc
     $cm.commandtext=@'
@@ -224,7 +242,7 @@ select destination
       log "В 'PRIMARY' БД переключение журнального файла..."
       $cm.commandtext=@'
 begin execute immediate 'alter system archive log current';end;
-'@ -replace $LNW,$NL
+'@ -replace $my.LNW,$my.NL.str
       [void]$cm.executenonquery()
       log '... Выполнено'
     }
@@ -268,7 +286,7 @@ where name is not null and dest_id = ${prd1} and thread# = ${prth}
       $cm.commandtext=@"
 declare full_name varchar2(513);recid number;stamp number;
 begin dbms_backup_restore.inspectArchivedLog('$_',full_name,recid,stamp);end;
-"@ -replace $LNW,$NL
+"@ -replace $my.LNW,$my.NL.str
       [void]$cm.executenonquery()
       log '... Выполнено'
     }
@@ -282,7 +300,7 @@ from '${sbad}'
 standby database until change ${xcn}
 "@
     log "В 'STANDBY' БД выполнение '${sql}'..."
-    $sql=$sql -replace "'","''" -replace $LNW,$NL
+    $sql=$sql -replace "'","''" -replace $my.LNW,$my.NL.str
     $cm.commandtext="begin execute immediate '${sql}'; end;"
     [void]$cm.executenonquery()
     log '... Выполнено'
@@ -297,23 +315,12 @@ standby database until change ${xcn}
     }
     log '... Выполнено'
   }
+  $sw=[diagnostics.stopwatch]::startnew()
   $erroractionpreference='stop'
-  gcm log|add-member @{REE=[stringsplitoptions]'removeemptyentries'
-                       CE={!!$_ -and $_.trim() -ne [string]::empty}
-                       LLB={date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27}}
+  $my=set_my
   try{
-    $sw=[diagnostics.stopwatch]::startnew()
-    $props=@{tran=$null}
-    $dt=date
-    $dt='{0}_{1:HHmm}' -f (($dt-[datetime]0).days%7+1),$dt
-    $sn=$myinvocation.scriptname
-    $log=[io.path]::getfilenamewithoutextension($sn)
-    $log="$(split-path $sn)\logs\${log}_${dt}.log"
-    $LNW=[environment]::newline
-    $NL=@{str="`n";ach=[char[]]"`n"}
-    $REE=[stringsplitoptions]::removeemptyentries
-    $lnbg={date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27}
-    try{start-transcript $log -f -outv tran|log;$props.tran=$tran}catch{}
+    set_bsw
+    mk_log
     if(!$call){log (gwmi win32_process -f "handle=${pid}").commandline}
     if(!(test-path env:oracle_sid)){throw 'Нет ORACLE_SID'}
     [void][reflection.assembly]::loadwithpartialname('Oracle.DataAccess')
@@ -351,5 +358,8 @@ standby database until change ${xcn}
     }
     if(!$call){log "Затрачено '$($sw.elapsed)'";exit 0}
   }catch{if($call){throw}else{$_|out-string|log -err;exit 1}}
-   finally{if($props.tran){stop-transcript >$null}}
+   finally{
+     if($my.tran){stop-transcript >$null}
+     if($my.bsw){set_bsw $my.bsw}
+   }
 }
