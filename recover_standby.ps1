@@ -2,8 +2,8 @@
 <#set-executionpolicy remotesigned localmachine -f
 get-acl (join-path $env:windir\system32\tasks backup_oracle.job)|
   set-acl (join-path $env:windir\system32\tasks manual_standby_recovery.job)
-powershell.exe -nol -nop -non -f ^
-  recover_standby.ps1[ -recover][ -switch][ -call]#>
+powershell.exe -nol -nop -non -f recover_standby.ps1 ^
+  [ -recover][ -switch][ -call]#>
 param([switch]$recover,[switch]$switch,[switch]$call)
 set-strictmode -vers latest
 &{
