@@ -287,7 +287,7 @@ where name is not null and dest_id = ${prd1} and thread# = ${prth}
       $arc=split-path $_ -le
       $_="\\${svr}\archivedlogs\${arc}"
       log "Копирование '$_' в '${sbad}'..."
-      if($recover){cp -l $_ $sbad}
+      cp -l $_ $sbad -wh:(!$recover)
       log '... Выполнено'
       $_="${sbad}\${arc}"
       log "Регистрация '$_'..."
