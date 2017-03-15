@@ -144,7 +144,7 @@ select min(scn) scn
     set_bsw
     mk_log
     if(!$call){log (gwmi win32_process -f "handle=${pid}").commandline}
-    if(!(test-path env:oracle_sid)){throw 'Нет ORACLE_SID'}
+    if(!($env:oracle_sid|? $my.CE)){throw 'Нет ORACLE_SID'}
     $sqlp=gcm sqlplus.exe
     [void][reflection.assembly]::loadwithpartialname('Oracle.DataAccess')
     log "Подключение к 'PRIMARY' БД..."

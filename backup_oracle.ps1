@@ -59,7 +59,7 @@ set-strictmode -vers latest
     set_bsw
     mk_log
     if(!$call){log (gwmi win32_process -f "handle=${pid}").commandline}
-    if($env:oracle_sid|?{!$_ -or !$_.trim()}){throw 'Нет ORACLE_SID'}
+    if(!($env:oracle_sid|? $my.CE)){throw 'Нет ORACLE_SID'}
 #    $env:path="C:\oracle\product\10.2.0\db_1\BIN;${env:path}"
     $tnsp,$rman=gcm tnsping.exe,rman.exe
     [void][reflection.assembly]::loadwithpartialname('Oracle.DataAccess')
