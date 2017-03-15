@@ -2,15 +2,15 @@
 <#set-executionpolicy remotesigned localmachine -f
 get-acl (join-path $env:windir\system32\tasks manual_standby_recovery.job)|
   set-acl (join-path $env:windir\system32\tasks backup_oracle.job)
-powershell.exe -nol -nop -non -f backup_oracle.ps1[-nobak][ -call]#>
-param([switch]$nobak,[switch]$call)
+powershell.exe -nol -nop -non -f backup_oracle.ps1[ -backup][ -call]#>
+param([switch]$backup,[switch]$call)
 set-strictmode -vers latest
 &{
   function set_my{
     @{LNW=[environment]::newline
       NL=@{str="`n";ach=[char[]]"`n"}
       REE=[stringsplitoptions]::removeemptyentries
-      CE={!!$_ -and $_.trim() -ne [string]::empty}
+      CE={$_ -and $_.trim()}
       LLB={date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27}
       bsw=$null
       tran=$null}
@@ -22,11 +22,12 @@ set-strictmode -vers latest
     $raw.buffersize=$bs
     $my.bsw=$bsw
   }
-  function log{param([parameter(valuefrompipeline=$true)]
-                     [validatenotnullorempty()][string]$log,[switch]$err)
+  function log{param([parameter(valuefrompipeline=$true)][string]$log,
+                     [switch]$err)
     process{
-      $log|%{$_.replace($my.LNW,$my.NL.str).split($my.NL.ach,$my.REE)}|? $my.CE|
-      %{$i=0}{"$(&$my.LLB[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}|out-host
+      $log|? $my.CE|%{$_.replace($my.LNW,$my.NL.str).split($my.NL.ach,$my.REE)}|
+      ? $my.CE|%{$i=0}{"$(&$my.LLB[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}|
+      out-host
     }
   }
   function mk_log{
@@ -60,8 +61,7 @@ set-strictmode -vers latest
     if(!$call){log (gwmi win32_process -f "handle=${pid}").commandline}
     if(!(test-path env:oracle_sid)){throw 'Нет ORACLE_SID'}
 #    $env:path="C:\oracle\product\10.2.0\db_1\BIN;${env:path}"
-    $tnsp=gcm tnsping.exe
-    $rman=gcm rman.exe
+    $tnsp,$rman=gcm tnsping.exe,rman.exe
     [void][reflection.assembly]::loadwithpartialname('Oracle.DataAccess')
     dispose-after($oc=mk_oc 'user id=/;dba privilege=sysdba'){
       dispose-after($cm=$oc.createcommand()){
@@ -85,13 +85,13 @@ where database_role in('PRIMARY','PHYSICAL STANDBY')
     }
     $db,$role=$my['db','role']
     $nsn="$('standby','primary'|?{$_ -ne $role})_ekr"
-    $out=tnsping.exe $nsn
+    $out=&$tnsp $nsn
     if($lastexitcode -ne 0){
       throw "Ошибка '${lastexitcode}' выполнения 'tnsping.exe ${nsn}'"
     }
     for(;;){
       $out|
-      ?{$_ -match '\(\s*host\s*=\s*(\w(?:-*\w)*(?:\.\w(?:-*\w)*)*)\s*\)'}|
+      ?{$_ -match '\(\s*host\s*=\s*(\w+(?:-+\w+)*(?:\.\w+(?:-+\w+)*)*)\s*\)'}|
       %{break}
       throw $out -join $my.LNW
     }
@@ -99,12 +99,14 @@ where database_role in('PRIMARY','PHYSICAL STANDBY')
     $bkp="\\${svr}\archivedlogs\backup\%d-${role}-%T-%t-%s-"
     if($role -eq 'primary'){
       $scr=@"
-configure retention policy to recovery window of 3 days;
 configure controlfile autobackup off;
+configure retention policy to recovery window of 3 days;
 crosscheck backup;
+delete noprompt expired backup;
 crosscheck copy;
+delete noprompt expired copy;
 run{
-  set command id to 'nightly full ${db} ${role} db backup';
+  set command id to '${db} ${role} db daily full backup';
   backup as compressed backupset check logical
     database
       format '${bkp}db.bkp'
@@ -116,25 +118,23 @@ run{
       format '${bkp}arc.bkp'
       delete input;
 }
-delete noprompt expired backup;
-delete noprompt expired copy;
 delete noprompt obsolete;
 "@
     }else{
       $scr=@"
 configure controlfile autobackup off;
 crosscheck backup;
+delete noprompt expired backup;
 crosscheck copy;
+delete noprompt expired copy;
 run{
-  set command id to 'nightly full ${db} ${role} db backup';
+  set command id to '${db} ${role} db daily full backup';
   backup as compressed backupset check logical
     database
       format '${bkp}db.bkp'
     plus archivelog
       format '${bkp}arc.bkp';
 }
-delete noprompt expired backup;
-delete noprompt expired copy;
 delete noprompt obsolete recovery window of 2 days;
 #delete noprompt obsolete redundancy=2;
 "@
@@ -144,7 +144,7 @@ delete noprompt obsolete recovery window of 2 days;
     try{start-transcript $my.log -f|log;$my.tran=$true}catch{}
     log $scr
     $scr="set echo on;{1}{0}{1}exit{1}" -f $scr,$my.LNW
-    if(!$nobak){$scr|&$rman target / nocatalog|log}
+    if($backup){$scr|&$rman target / nocatalog|log}
     if($lastexitcode -ne 0){
       throw "Ошибка '${lastexitcode}' выполнения 'rman.exe'"
     }

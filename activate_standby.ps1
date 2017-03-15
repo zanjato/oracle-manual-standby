@@ -8,7 +8,7 @@ set-strictmode -vers latest
     @{LNW=[environment]::newline
       NL=@{str="`n";ach=[char[]]"`n"}
       REE=[stringsplitoptions]::removeemptyentries
-      CE={!!$_ -and $_.trim() -ne [string]::empty}
+      CE={$_ -and $_.trim()}
       LLB={date -f 'yyyy-MM-dd HH:mm:ss.fffffff'},{' '*27}
       bsw=$null
       tran=$null}
@@ -20,11 +20,12 @@ set-strictmode -vers latest
     $raw.buffersize=$bs
     $my.bsw=$bsw
   }
-  function log{param([parameter(valuefrompipeline=$true)]
-                     [validatenotnullorempty()][string]$log,[switch]$err)
+  function log{param([parameter(valuefrompipeline=$true)][string]$log,
+                     [switch]$err)
     process{
-      $log|%{$_.replace($my.LNW,$my.NL.str).split($my.NL.ach,$my.REE)}|? $my.CE|
-      %{$i=0}{"$(&$my.LLB[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}|out-host
+      $log|? $my.CE|%{$_.replace($my.LNW,$my.NL.str).split($my.NL.ach,$my.REE)}|
+      ? $my.CE|%{$i=0}{"$(&$my.LLB[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}|
+      out-host
     }
   }
   function mk_log{
@@ -155,7 +156,7 @@ select min(scn) scn
           $da=new-object oracle.dataaccess.client.oracledataadapter){
           $da.selectcommand=$cm
           dispose-after($tbl=new-object data.datatable){
-            $om=@('MOUNTED','READ WRITE','READ ONLY')
+            $om=@('READ WRITE','READ ONLY','MOUNTED')
             $prid,$prrl,$prprl=chk_db_pars $proc CURRENT PRIMARY $om
             log "Подключение к 'STANDBY' БД..."
             dispose-after($sboc=mk_oc $cs){
@@ -187,9 +188,9 @@ startup mount;
 '@
     log $scr
     if($activate){
-      $msr=gcm "$(split-path $my.sn)\manual_standby_recovery.ps1"
+      $msr=gcm "$(split-path $my.sn)\recover_standby.ps1"
       run_sqlp
-      &$msr -call
+      &$msr -recover -call
     }
     $scr=@'
 whenever oserror exit failure rollback;
