@@ -56,7 +56,7 @@ set-strictmode -vers latest
     param([validatenotnull()][object]$obj,[validatenotnull()][scriptblock]$sb)
     try{&$sb}
     finally{
-      if($obj -is [idisposable] -or $obj -as [idisposable]){
+      if($obj -as [idisposable]){
         [void][idisposable].getmethod('Dispose').invoke($obj,$null)
       }
     }
