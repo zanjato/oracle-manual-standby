@@ -7,7 +7,7 @@ powershell.exe -nol -nop -non -f recover_standby.ps1 ^
 param([switch]$recover,[switch]$switch,[switch]$call)
 set-strictmode -vers latest
 &{
-<#  function chkpars{
+  <#function chkpars{
     param([parameter(mandatory=$true)][validatenotnull()]
           [management.automation.commandinfo]$ci,
           [parameter(mandatory=$true)][validatenotnull()]
@@ -15,7 +15,7 @@ set-strictmode -vers latest
     $ci.parameters.getenumerator()|?{!$_.value.switchparameter}|
     %{gv $_.key -ea silentlycontinue}|?{!$bp.containskey($_.name)}|
     %{throw "Функция '$($ci.name)' вызвана без параметра '$($_.name)'"}
-#    chkpars $myinvocation.mycommand $psboundparameters
+    #chkpars $myinvocation.mycommand $psboundparameters
   }#>
   function set_my{
     @{LNW=[environment]::newline
@@ -27,7 +27,7 @@ set-strictmode -vers latest
       tran=$null}
   }
   function set_bsw{param([validatenotnull()][int]$bsw=512)
-<#    $my.bsw=$host.ui.rawui|
+    <#$my.bsw=$host.ui.rawui|
     %{$_.buffersize=$_.buffersize|
       %{$bsw,$_.width=$_.width,$bsw;$_};$bsw}#>
     $raw=$host.ui.rawui
@@ -40,8 +40,7 @@ set-strictmode -vers latest
                      [switch]$err)
     process{
       $log|? $my.CE|%{$_.replace($my.LNW,$my.NL.str).split($my.NL.ach,$my.REE)}|
-      ? $my.CE|%{$i=0}{"$(&$my.LLB[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}|
-      out-host
+      ? $my.CE|%{$i=0}{"$(&$my.LLB[$i]) $(if($err){'!!'}else{'--'}) $_";$i=1}|oh
     }
   }
   function mk_log{
