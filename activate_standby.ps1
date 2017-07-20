@@ -149,7 +149,7 @@ select min(scn) scn
     [void][reflection.assembly]::loadwithpartialname('Oracle.DataAccess')
     log "Подключение к 'PRIMARY' БД..."
     $cs='user id=/;dba privilege=sysdba'
-    dispose-after($proc=mk_oc "data source=primary_ekr;${cs}"){
+    dispose-after($proc=mk_oc "data source=primary_db;${cs}"){
       log '... Выполнено'
       dispose-after($cm=new-object oracle.dataaccess.client.oraclecommand){
         dispose-after(
@@ -174,7 +174,7 @@ select min(scn) scn
     $scr=@'
 whenever oserror exit failure rollback;
 whenever sqlerror exit sql.sqlcode rollback;
-conn /@primary_ekr as sysdba;
+conn /@primary_db as sysdba;
 alter system set audit_trail=os scope=spfile;
 shutdown immediate;
 startup restrict open read only;
@@ -205,7 +205,7 @@ whenever oserror exit failure rollback;
 whenever sqlerror exit sql.sqlcode rollback;
 startup;
 select controlfile_type,database_role,open_mode from v$database;
-conn /@primary_ekr as sysdba;
+conn /@primary_db as sysdba;
 alter database convert to physical standby;
 whenever oserror continue none;
 whenever sqlerror continue none;
