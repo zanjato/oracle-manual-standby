@@ -84,7 +84,7 @@ where database_role in('PRIMARY','PHYSICAL STANDBY')
       }
     }
     $db,$role=$my['db','role']
-    $nsn="$('standby','primary'|?{$_ -ne $role})_ekr"
+    $nsn="$('standby','primary'|?{$_ -ne $role})_db"
     $out=&$tnsp $nsn
     if($lastexitcode -ne 0){
       throw "Ошибка '${lastexitcode}' выполнения 'tnsping.exe ${nsn}'"
