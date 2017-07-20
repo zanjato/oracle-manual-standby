@@ -333,7 +333,7 @@ alter database recover automatic from '${sbad}' standby database until change ${
     [void][reflection.assembly]::loadwithpartialname('Oracle.DataAccess')
     log "Подключение к 'PRIMARY' БД..."
     $cs='user id=/;dba privilege=sysdba'
-    dispose-after($proc=mk_oc "data source=primary_ekr;${cs}"){
+    dispose-after($proc=mk_oc "data source=primary_db;${cs}"){
       log '... Выполнено'
       dispose-after($cm=new-object oracle.dataaccess.client.oraclecommand){
         dispose-after(
