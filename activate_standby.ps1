@@ -108,7 +108,7 @@ select min(scn) scn
         select checkpoint_change# from v$datafile
          union all
         select current_scn
-/*               case
+               /*case
                  when current_scn is null
                    or current_scn > checkpoint_change#
                  then checkpoint_change#
