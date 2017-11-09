@@ -1,7 +1,7 @@
 #requires -version 2
 <#set-executionpolicy remotesigned localmachine -f
 powershell.exe -c get-acl recover_standby.job^|set-acl backup_oracle.job
-cmd.exe /c powershell.exe -nol -nop -noni[ -ex bypass]
+cmd.exe /c powershell.exe[ -nol -nop -noni -ex bypass]
   -f backup_oracle.ps1[ -backup][ -call]#>
 param([switch]$backup,[switch]$call)
 set-strictmode -v latest
