@@ -1,6 +1,6 @@
 #requires -version 2
 <#set-executionpolicy remotesigned localmachine -f
-powershell.exe -nol -nop -non[ -ex bypass]
+powershell.exe[ -nol -nop -noni -ex bypass]
   -f activate_standby.ps1[ -activate][ -call]#>
 param([switch]$activate,[switch]$call)
 set-strictmode -v latest
