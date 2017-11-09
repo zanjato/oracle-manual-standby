@@ -1,8 +1,6 @@
 function chk_db_pars{
   param([validatenotnull()][oracle.dataaccess.client.oracleconnection]$oc,
-        #[validatenotnullorempty()][string]$cft,
         [validateset('CURRENT','STANDBY')][string]$cft,
-        #[validatenotnullorempty()][string]$dbrl,
         [validateset('PRIMARY','PHYSICAL STANDBY')][string]$dbrl,
         [validatenotnullorempty()][string[]]$om)
   log "В '${dbrl}' БД получение информации из V`$DATABASE..."
