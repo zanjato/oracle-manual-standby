@@ -14,14 +14,14 @@ select d.dbid,d.name dbnm,d.created dbcr,
   if($dbrl -eq 'PRIMARY'){
     $cm.commandtext+=@"
 ,$($my.LNW)  d.prior_resetlogs_change# prlch,d.prior_resetlogs_time prltm,
-  i.resetlogs_id rlid
+  i.resetlogs_id rlid$($my.LNW)
 "@
   }
-  $cm.commandtext+=@"
-$($my.LNW)from v`$database d join v`$database_incarnation i
+  $cm.commandtext+=@'
+from v$database d join v$database_incarnation i
   on d.resetlogs_change#=i.resetlogs_change# and
      d.resetlogs_time=i.resetlogs_time
-"@
+'@
   if($da.fill($tbl) -ne 1){throw "Чтение из '$($cm.commandtext)'"}
   $r1=$tbl.rows[0]
   log '... Выполнено'
