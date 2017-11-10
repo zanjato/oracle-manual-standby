@@ -87,7 +87,7 @@ where a.name is not null and a.dest_id=${prd1} and
   a.is_recovery_dest_file='NO' and a.resetlogs_change#=$($pr.rlch) and
   a.resetlogs_time=to_date('${rltm}','yyyymmddhh24miss') and
   a.resetlogs_id=$($pr.rlid) and a.deleted='NO' and a.status='A' and
-  (${sbcn}<a.first_change# or $($sbcn+1)<a.next_change#)
+  ${sbcn}<a.next_change#-1
 "@
     if($da.fill($tbl) -le 0){
       throw "В 'PRIMARY' БД нет архивных журнальных файлов для копирования"
