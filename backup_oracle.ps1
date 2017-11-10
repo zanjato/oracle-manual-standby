@@ -94,8 +94,8 @@ delete noprompt obsolete recovery window of 2 days;
 "@
     }
     if($my.tran){stop-transcript|log;$my.tran=$null}
-    $my.log="logs\backup_${db}_${role}_$($my.dt).log"
-    try{start-transcript $my.log -f|log;$my.tran=$true}catch{}
+    $log="logs\backup_${db}_${role}_$($my.dt).log"
+    try{start-transcript $log -f|log;$my.tran=$true}catch{}
     log $scr
     $scr="set echo on;{1}{0}{1}exit{1}" -f $scr,$my.LNW
     if($backup){$scr|&$rman target / nocatalog|log}
