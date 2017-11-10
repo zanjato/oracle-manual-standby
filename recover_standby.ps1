@@ -105,7 +105,8 @@ where a.name is not null and a.dest_id=${prd1} and
     if($da.fill($tbl) -ne 1){throw "Чтение из '$($cm.commandtext)'"}
     $svr=[net.dns]::gethostentry($tbl.rows[0].svr).hostname
     $cm.connection=$sboc
-    $arcs.keys|%{$xcn=0}{
+    $xcn=0
+    $arcs.keys|%{
       if($xcn -lt $arcs[$_]){$xcn=$arcs[$_]}
       $arc=split-path $_ -le
       $_="\\${svr}\archivedlogs\${arc}"
