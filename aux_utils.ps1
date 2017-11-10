@@ -35,10 +35,10 @@ function log{param([parameter(valuefrompipeline=$true)][string]$log,
 function mk_log{
   $dt=date
   $my.dt='{0}_{1:HHmm}' -f (($dt-[datetime]0).days%7+1),$dt
-  $my.sn=split-path $myinvocation.scriptname -le
-  $my.log=[io.path]::getfilenamewithoutextension($my.sn)
-  $my.log="logs\$($my.log)_$($my.dt).log"
-  try{start-transcript $my.log -f|log;$my.tran=$true}catch{}
+  $sn=split-path $myinvocation.scriptname -le
+  $log=[io.path]::getfilenamewithoutextension($sn)
+  $log="logs\${log}_$($my.dt).log"
+  try{start-transcript $log -f|log;$my.tran=$true}catch{}
 }
 function dispose-after{
   param([validatenotnull()][object]$obj,[validatenotnull()][scriptblock]$sb)
